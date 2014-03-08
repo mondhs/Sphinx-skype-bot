@@ -57,6 +57,7 @@ class Artificialintelligence(object):
     def updateState(self, aiContext, state):
         aiContext.stateStarted = time.time()
         aiContext.state = state
+        logging.info("[updateState] response: %s", AiContext.MSG[aiContext.state].format(" - "));
         return aiContext
 
     def said(self, said, aiContext):
@@ -105,8 +106,8 @@ class Artificialintelligence(object):
             aiContext.interactiveStep = False
             aiContext.response = AiContext.MSG[aiContext.state]
         elif(aiContext.state == aiContext.STATE_THANKS):
-            aiContext.interactiveStep = False
-            self.updateState(aiContext, aiContext.STATE_HI)
+            aiContext.interactiveStep = True
+            self.updateState(aiContext, aiContext.STATE_FINISH)
             aiContext.response = AiContext.MSG[aiContext.state]
 
 
@@ -145,10 +146,10 @@ class AiContext(object):
            STATE_ASK_YEAR: "Pasakykite gimimo metus iš keturių pavienių skaičių.",
            STATE_VERIFY_YEAR:u"Ar Jūs sakėte {0}. Sakykite tesingai arba klaidingai.",
            STATE_ASK_WHAT_SERVICE:u"Pasakykite kokios paslaugos ieškote.",
-           STATE_VERIFY_WHAT_SERVICE:u"Ar Jūs sakėte. {0}? tesingai ar klaidingai.",
+           STATE_VERIFY_WHAT_SERVICE:u"Ar Jūs sakėte. {0}. tesingai ar klaidingai.",
            STATE_NOTIFY_SERVICE_ORDERED: u"Greitu laiku Jums bus išsiųsta infomacija.",
-           STATE_THANKS: u"Viso gero.",
-           STATE_FINISH: None
+           STATE_THANKS: u"Viso gero. Iki malonaus.",
+           STATE_FINISH: u"Iki malonaus"
     }
 
     state = None

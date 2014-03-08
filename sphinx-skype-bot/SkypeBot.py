@@ -14,8 +14,9 @@ auto run skype: echo username password | skype --pipelogin
 
 
 '''
+import os
 import subprocess
-import sys, time,tempfile
+import time
 import Skype4Py
 import logging as logging
 
@@ -26,19 +27,14 @@ import logging as logging
 class SkypeBot:
 
     Skype = None # Skype4Py
-
-    Messages = {
-       "welcome_phrase": "Labas %s. Mano vardas Liepa. Kuo galiu padėti?",
-       "welcome_text": "Labas %s. Mano vardas Liepa. Ar galite paskambinti?",
-       "after_call": "Dėkui, kad skambinote.",
-    }
-
+    lockFile = "/tmp/skype.wav"
+    killFile = "/tmp/killDialog.txt"
 
     def __init__(self):
         self.Skype = Skype4Py.Skype()
         self.Skype.Attach()
-        logging.getLogger('Skype4Py').setLevel(logging.DEBUG)
-        logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+        logging.getLogger('Skype4Py').setLevel(logging.INFO)
+        logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
         logging.info("Skypebot connected with login %s", self.Skype.CurrentUser.Handle)
         self.Skype.OnAttachmentStatus = self.AttachmentStatus
         self.Skype.OnMessageStatus = self.MessageStatus
@@ -66,7 +62,7 @@ class SkypeBot:
         #if self.AI.getPredicate("name", Message.FromHandle) == "":
         #    self.AI.setPredicate("name", Message.FromDisplayName, Message.FromHandle)
         #Message.Chat.SendMessage(self.AI.respond(Message.Body, Message.FromHandle))
-        Message.Chat.SendMessage(self.Messages['welcome_text'] % Message.FromHandle)
+        Message.Chat.SendMessage("Labas")
 
 
 
@@ -85,13 +81,13 @@ class SkypeBot:
         elif Status == Skype4Py.clsInProgress:
             self.ProcessCall(Call)
         elif Status == Skype4Py.clsFinished:
-            self.Skype.SendMessage(Call.PartnerHandle, self.Messages['after_call'])
+            self.Skype.SendMessage(Call.PartnerHandle, "Dėkui")
 
     def ProcessCall(self, Call):
         """ Process call and emulate conversation """
         Call.MarkAsSeen()
         logging.info("ProcessCall '%s'", Call)
-        self.SayByVoice(Call, "Labas")
+        #self.SayByVoice(Call, "Labas")
         # record wav file with buddy's speech
         #TemporaryFileWAV = tempfile.NamedTemporaryFile(prefix= Call.PartnerHandle +"_record_", suffix=".wav", delete=False)
         #logging.info("TemporaryFileWAV.name '%s'", TemporaryFileWAV.name)
@@ -99,9 +95,25 @@ class SkypeBot:
         #Call.OutputDevice(Skype4Py.callIoDeviceTypeFile, TemporaryFileWAV.name)
 
         Call.OutputDevice(Skype4Py.callIoDeviceTypePort, "8080")
-        time.sleep(1000)
+
+        while True:
+            time.sleep(.100)
+            if os.path.exists(self.killFile):
+                logging.info("[ProcessCall] kill file exist. Bye!")
+                os.remove(self.killFile);
+                break;
+            if os.path.exists(self.lockFile):
+                Call.InputDevice(Skype4Py.callIoDeviceTypeFile, self.lockFile)
+                logging.info("Saying+++")
+                # pause thread execution while bot is speaking
+                while not Call.InputDevice(Skype4Py.callIoDeviceTypeFile) == None:
+                    time.sleep(.100)
+                logging.info("Saying---")
+                #release lock
+                os.remove(self.lockFile);
+
         # terminate speech recording
-        self.SayByVoice(Call, "Viso gero")
+        #self.SayByVoice(Call, "Viso gero")
         Call.OutputDevice(Skype4Py.callIoDeviceTypePort, None)
         time.sleep(1)
         Call.Finish()

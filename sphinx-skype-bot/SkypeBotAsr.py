@@ -1,24 +1,37 @@
 import SocketServer
+import subprocess
 import time
+import os
 from SphinxHelper import SphinxHelper
+from Artificialintelligence import Artificialintelligence
+import logging
+
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.info("Skypebot ASR up and running", )
 
 class MyTCPHandler(SocketServer.BaseRequestHandler):
 
     CHUNK = 4096
+    ai = Artificialintelligence()
 
-    """
-    The RequestHandler class for our server.
-
-    It is instantiated once per connection to the server, and must
-    override the handle() method to implement communication to the
-    client.
-    """
+    lockFile = "/tmp/skype.wav"
+    killFile = "/tmp/killDialog.txt"
 
     def handle(self):
+        """
+        The RequestHandler class for our server.
+
+        It is instantiated once per connection to the server, and must
+        override the handle() method to implement communication to the
+        client.
+        """
         # self.request is the TCP socket connected to the client
         print "[handle]+++";
+
         sphinxHelper = SphinxHelper()
         sphinxHelper.prepareDecoder("code")
+        aiContext = self.ai.createContext();
+        self.said(aiContext, None);
 
         #print "{} wrote:".format(self.client_address[0])
 
@@ -28,6 +41,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
             data = self.request.recv(self.CHUNK)
             if not data: break
             time.sleep (0.100)
+
             sphinxHelper.process_raw(data)
             if sphinxHelper.isVoiceStarted():
                 #silence -> speech transition,
@@ -42,15 +56,60 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 hypothesis = sphinxHelper.calculateHypothesis();
                 if hypothesis is not None:
                     print ('Best hypothesis: ', hypothesis.uttid, hypothesis.best_score, hypothesis.hypstr)
+                    logging.info ('Best hypothesis: %s %s %s', hypothesis.uttid, hypothesis.best_score, hypothesis.hypstr)
+                    saidText = hypothesis.hypstr.decode('utf-8')
+                    if self.said(aiContext, saidText) is None:
+                        break;
+                    if aiContext.state == aiContext.STATE_THANKS:
+                        with open(self.killFile, 'a') as the_file:
+                            the_file.write('Bye\n')
+                    if aiContext.state in aiContext.GRAM:
+                        sphinxHelper.updateGrammar(aiContext.GRAM[aiContext.state])
                 sphinxHelper.startListening()
 
 
-        print "[handle]---";
+        logging.info("[handle]---");
 
     def finish(self):
-        print('{}:{} disconnected'.format(*self.client_address))
+        print('{} disconnected'.format(*self.client_address))
+        #with open(self.killFile, 'a') as the_file:
+        #    the_file.write('Bye\n')
 
+    def said(self, aiContext, text):
+        '''
+        Process what was said by AI and announce response
+        '''
+        logging.info ("[said]+++ %s", text)
 
+        aiContext = self.ai.said(text, aiContext)
+        print ('AI response: ',  aiContext.state, aiContext.response)
+
+        self.speak(aiContext.response)
+        if aiContext.state == aiContext.STATE_FINISH:
+            with open(self.killFile, 'a') as the_file:
+                the_file.write('Bye\n')
+            return None
+        if aiContext.interactiveStep is False :
+            self.said(aiContext, text);
+        logging.info ("[said]--- %s", text)
+        return aiContext
+
+    def speak(self, text):
+        # output file to buddy's ears
+        logging.info("SayByVoice+++ '%s'", text)
+        generateCommand = ["/home/as/bin/tts-win-lt", text]
+        logging.info("[SayByVoice] generateCommand: %s", generateCommand)
+        p = subprocess.Popen(generateCommand, stdout=subprocess.PIPE)
+        generateFile = p.stdout.readline().rstrip()
+        logging.info("[SayByVoice] generateFile '%s'", generateFile)
+                    #we have things to say. Does not listen
+        logging.info ("[speak] lock exists %s", os.path.exists(self.lockFile))
+        while os.path.exists(self.lockFile):
+            time.sleep(.100)
+        logging.info ("[speak] lock not exists %s", os.path.exists(self.lockFile))
+        time.sleep(.100)
+
+        logging.info("SayByVoice--- '%s'", text)
 
 
 if __name__ == "__main__":
