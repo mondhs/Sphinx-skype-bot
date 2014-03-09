@@ -28,28 +28,34 @@ class BotAsrServer(SocketServer.BaseRequestHandler):
         # self.request is the TCP socket connected to the client
         print "[handle]+++";
 
+        #Create Sphinx instance
         sphinxWrapper = SphinxWrapper()
+        #Initialize Sphinx with "code" grammar
         sphinxWrapper.prepareDecoder("code")
+        #Initialize Artificial Intelligence context
         aiContext = self.ai.createContext();
-        self.said(aiContext, None);
-
-        #print "{} wrote:".format(self.client_address[0])
-
+        # invoke AI engine for the first time: welcome
+        self.processAsrText(aiContext, None);
+        # start waiting for speech segment
         sphinxWrapper.startListening()
 
         while True:
+            #read skype data from socket in chunks
             data = self.request.recv(self.CHUNK)
+            # skype does not sending data, stop listening
             if not data: break
+            # do not need procced to fast. each 100ms is enough. Data buffering is organized in socket logic
             time.sleep (0.100)
-
+            # feed received data to sphinx decoder
             sphinxWrapper.process_raw(data)
+            # speech segment found.
             if sphinxWrapper.isVoiceStarted():
                 #silence -> speech transition,
                 #let user know that we heard
-                print("Listening...\n")
-            #if not vad_state and cur_vad_state:
+                logging.info("Listening...\n")
+            # speech segment endend
             if sphinxWrapper.isVoiceEnded():
-                print("Recognised...\n")
+                logging.info("Recognised...\n")
                 #speech -> silence transition,
                 #time to start new utterance
                 sphinxWrapper.stopListening();
@@ -57,13 +63,16 @@ class BotAsrServer(SocketServer.BaseRequestHandler):
                 if hypothesis is not None:
                     print ('Best hypothesis: ', hypothesis.uttid, hypothesis.best_score, hypothesis.hypstr)
                     logging.info ('Best hypothesis: %s %s %s', hypothesis.uttid, hypothesis.best_score, hypothesis.hypstr)
-                    saidText = hypothesis.hypstr.decode('utf-8')
-                    if self.said(aiContext, saidText) is None:
+                    # get text from ASR in U
+                    messageSaid = hypothesis.hypstr.decode('utf-8')
+                    # feed ASR text to AI
+                    if self.processAsrText(aiContext, messageSaid) is None:
                         break;
                     if aiContext.state == aiContext.STATE_THANKS:
                         with open(self.killFile, 'a') as the_file:
                             the_file.write('Bye\n')
                     if aiContext.state in aiContext.GRAM:
+                        # if state is bound to grammar update ASR
                         sphinxWrapper.updateGrammar(aiContext.GRAM[aiContext.state])
                 sphinxWrapper.startListening()
 
@@ -75,41 +84,46 @@ class BotAsrServer(SocketServer.BaseRequestHandler):
         #with open(self.killFile, 'a') as the_file:
         #    the_file.write('Bye\n')
 
-    def said(self, aiContext, text):
+    def processAsrText(self, aiContext, message):
         '''
         Process what was said by AI and announce response
         '''
-        logging.info ("[said]+++ %s", text)
+        logging.info ("[said]+++ %s", message)
 
-        aiContext = self.ai.said(text, aiContext)
+        aiContext = self.ai.onMessageSaid(message, aiContext)
         print ('AI response: ',  aiContext.state, aiContext.response)
 
-        self.speak(aiContext.response)
+        self.geneareSpeechResponse(aiContext.response)
         if aiContext.state == aiContext.STATE_FINISH:
             with open(self.killFile, 'a') as the_file:
                 the_file.write('Bye\n')
             return None
         if aiContext.interactiveStep is False :
-            self.said(aiContext, text);
-        logging.info ("[said]--- %s", text)
+            self.processAsrText(aiContext, message);
+        logging.info ("[said]--- %s", message)
         return aiContext
 
-    def speak(self, text):
-        # output file to buddy's ears
-        logging.info("SayByVoice+++ '%s'", text)
-        generateCommand = ["/home/as/bin/tts-win-lt", text]
-        logging.info("[SayByVoice] generateCommand: %s", generateCommand)
+    def geneareSpeechResponse(self, text):
+        '''
+        Invoke text-to-speech to generate wav file
+        '''
+        logging.info("geneareSpeechResponse+++ '%s'", text)
+        #Invoke command file text-to-speech to generate Lithuanian language response for skype
+        generateCommand = ["/home/as/bin/tts-skype-lt", text]
+        logging.info("[geneareSpeechResponse] generateCommand: %s", generateCommand)
         p = subprocess.Popen(generateCommand, stdout=subprocess.PIPE)
+        #wait till it is generated
         generateFile = p.stdout.readline().rstrip()
-        logging.info("[SayByVoice] generateFile '%s'", generateFile)
+        logging.info("[geneareSpeechResponse] generateFile '%s'", generateFile)
                     #we have things to say. Does not listen
-        logging.info ("[speak] lock exists %s", os.path.exists(self.lockFile))
+        logging.info ("[geneareSpeechResponse] lock exists %s", os.path.exists(self.lockFile))
+        #wait till skype will announce the fail to user
         while os.path.exists(self.lockFile):
             time.sleep(.100)
-        logging.info ("[speak] lock not exists %s", os.path.exists(self.lockFile))
+        logging.info ("[geneareSpeechResponse] lock not exists %s", os.path.exists(self.lockFile))
         time.sleep(.100)
 
-        logging.info("SayByVoice--- '%s'", text)
+        logging.info("geneareSpeechResponse--- '%s'", text)
 
 
 if __name__ == "__main__":

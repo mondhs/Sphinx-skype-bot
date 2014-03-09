@@ -60,8 +60,8 @@ class Artificialintelligence(object):
         logging.info("[updateState] response: %s", AiContext.MSG[aiContext.state].format(" - "));
         return aiContext
 
-    def said(self, said, aiContext):
-        logging.info("said %s", said)
+    def onMessageSaid(self, said, aiContext):
+        logging.info("onMessageSaid %s", said)
         said = self.transformNumbers(said)
         aiContext.interactiveStep = True
         if(aiContext.state == aiContext.STATE_INIT):
