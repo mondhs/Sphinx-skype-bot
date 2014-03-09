@@ -15,7 +15,6 @@ auto run skype: echo username password | skype --pipelogin
 
 '''
 import os
-import subprocess
 import time
 import Skype4Py
 import logging as logging
@@ -58,10 +57,6 @@ class SkypeBot:
 
     def ProcessMessage(self, Message):
         """ Process chat message """
-        # if we don't know buddy's name - take it from Skype Profile
-        #if self.AI.getPredicate("name", Message.FromHandle) == "":
-        #    self.AI.setPredicate("name", Message.FromDisplayName, Message.FromHandle)
-        #Message.Chat.SendMessage(self.AI.respond(Message.Body, Message.FromHandle))
         Message.Chat.SendMessage("Labas")
 
 
@@ -76,7 +71,6 @@ class SkypeBot:
         """ Event handler for Skype calls """
         logging.info("CallStatus '%s'", Status)
         if Status == Skype4Py.clsRinging:
-            #time.sleep(1)
             Call.Answer()
         elif Status == Skype4Py.clsInProgress:
             self.ProcessCall(Call)
@@ -87,22 +81,20 @@ class SkypeBot:
         """ Process call and emulate conversation """
         Call.MarkAsSeen()
         logging.info("ProcessCall '%s'", Call)
-        #self.SayByVoice(Call, "Labas")
-        # record wav file with buddy's speech
-        #TemporaryFileWAV = tempfile.NamedTemporaryFile(prefix= Call.PartnerHandle +"_record_", suffix=".wav", delete=False)
-        #logging.info("TemporaryFileWAV.name '%s'", TemporaryFileWAV.name)
-        #TemporaryFileWAV.close()
-        #Call.OutputDevice(Skype4Py.callIoDeviceTypeFile, TemporaryFileWAV.name)
-
+        #Send audio stream to 8080 port of localhost.
         Call.OutputDevice(Skype4Py.callIoDeviceTypePort, "8080")
-
+        # eternal cycle for monitoring AI work in background
         while True:
             time.sleep(.100)
+            #if AI created this file thats mean conversation should be ended
             if os.path.exists(self.killFile):
+                #release lock and finish conversation
                 logging.info("[ProcessCall] kill file exist. Bye!")
                 os.remove(self.killFile);
                 break;
+            # if AI TTS created this wav file thats mean we need playback to user
             if os.path.exists(self.lockFile):
+                # set file as playback in skype
                 Call.InputDevice(Skype4Py.callIoDeviceTypeFile, self.lockFile)
                 logging.info("Saying+++")
                 # pause thread execution while bot is speaking
@@ -113,31 +105,10 @@ class SkypeBot:
                 os.remove(self.lockFile);
 
         # terminate speech recording
-        #self.SayByVoice(Call, "Viso gero")
         Call.OutputDevice(Skype4Py.callIoDeviceTypePort, None)
         time.sleep(1)
         Call.Finish()
 
-
-    def SayByVoice(self, Call, Text):
-        # output file to buddy's ears
-        logging.info("SayByVoice+++ '%s'", Text)
-        logging.info("SayByVoice+++ InputDevice()'%s'", Call.InputDevice())
-
-        generateCommand = ["/home/as/bin/tts-win-lt", Text]
-        logging.info("[SayByVoice] generateCommand: %s", generateCommand)
-        #subprocess.call(ConvertCommand)
-        p = subprocess.Popen(generateCommand, stdout=subprocess.PIPE)
-        generateFile = p.stdout.readline().rstrip()
-        #generateFile = p.communicate()[0]
-        #Call.InputDevice(Skype4Py.callIoDeviceTypeFile, "/tmp/tmp.EyuEMu1vFp/0.wav")
-        logging.info("[SayByVoice] generateFile '%s'", generateFile)
-        Call.InputDevice(Skype4Py.callIoDeviceTypeFile, generateFile)
-
-        # pause thread execution while bot is speaking
-        while not Call.InputDevice(Skype4Py.callIoDeviceTypeFile) == None:
-            time.sleep(1)
-        logging.info("SayByVoice--- '%s'", Text)
 
 
     def AttachmentStatus(self, status):

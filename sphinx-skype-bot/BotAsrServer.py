@@ -2,14 +2,14 @@ import SocketServer
 import subprocess
 import time
 import os
-from SphinxHelper import SphinxHelper
+from SphinxWrapper import SphinxWrapper
 from Artificialintelligence import Artificialintelligence
 import logging
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 logging.info("Skypebot ASR up and running", )
 
-class MyTCPHandler(SocketServer.BaseRequestHandler):
+class BotAsrServer(SocketServer.BaseRequestHandler):
 
     CHUNK = 4096
     ai = Artificialintelligence()
@@ -28,32 +28,32 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         # self.request is the TCP socket connected to the client
         print "[handle]+++";
 
-        sphinxHelper = SphinxHelper()
-        sphinxHelper.prepareDecoder("code")
+        sphinxWrapper = SphinxWrapper()
+        sphinxWrapper.prepareDecoder("code")
         aiContext = self.ai.createContext();
         self.said(aiContext, None);
 
         #print "{} wrote:".format(self.client_address[0])
 
-        sphinxHelper.startListening()
+        sphinxWrapper.startListening()
 
         while True:
             data = self.request.recv(self.CHUNK)
             if not data: break
             time.sleep (0.100)
 
-            sphinxHelper.process_raw(data)
-            if sphinxHelper.isVoiceStarted():
+            sphinxWrapper.process_raw(data)
+            if sphinxWrapper.isVoiceStarted():
                 #silence -> speech transition,
                 #let user know that we heard
                 print("Listening...\n")
             #if not vad_state and cur_vad_state:
-            if sphinxHelper.isVoiceEnded():
+            if sphinxWrapper.isVoiceEnded():
                 print("Recognised...\n")
                 #speech -> silence transition,
                 #time to start new utterance
-                sphinxHelper.stopListening();
-                hypothesis = sphinxHelper.calculateHypothesis();
+                sphinxWrapper.stopListening();
+                hypothesis = sphinxWrapper.calculateHypothesis();
                 if hypothesis is not None:
                     print ('Best hypothesis: ', hypothesis.uttid, hypothesis.best_score, hypothesis.hypstr)
                     logging.info ('Best hypothesis: %s %s %s', hypothesis.uttid, hypothesis.best_score, hypothesis.hypstr)
@@ -64,8 +64,8 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                         with open(self.killFile, 'a') as the_file:
                             the_file.write('Bye\n')
                     if aiContext.state in aiContext.GRAM:
-                        sphinxHelper.updateGrammar(aiContext.GRAM[aiContext.state])
-                sphinxHelper.startListening()
+                        sphinxWrapper.updateGrammar(aiContext.GRAM[aiContext.state])
+                sphinxWrapper.startListening()
 
 
         logging.info("[handle]---");
@@ -116,8 +116,8 @@ if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
     print ("Started", HOST, PORT)
 
-    # Create the server, binding to localhost on port 9999
-    server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+    # Create the server, binding to localhost on port 8080
+    server = SocketServer.TCPServer((HOST, PORT), BotAsrServer)
 
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
