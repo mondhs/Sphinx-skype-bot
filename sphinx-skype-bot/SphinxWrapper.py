@@ -65,23 +65,23 @@ When Vad says that speech segment ended it should be called `stopListening(...)`
         print ("[updateGrammar]---")
 
     def startListening(self):
-        ```
+        """
         Instruct decoder that new utterace should be expected
-        ```
+        """
         self.decoder.start_utt(None)
 
 
     def stopListening(self):
-        ```
+        """
         Instruct decoder that new utterace should is not expected any more
-        ```
+        """
         self.decoder.end_utt()
 
 
     def process_raw(self, data):
-        ```
+        """
         Feed decoder with raw audio data. After data is updating refresh VAD state
-        ```
+        """
         #print("process_raw...\n")
         self.decoder.process_raw(data, False, False)
         self.previousVadState = self.currentVadState
