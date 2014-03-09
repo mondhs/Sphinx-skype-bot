@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+"""
+https://github.com/awahlig/skype4py/issues/15 "Skype uses wav format with 46 bytes header"
+"""
 import sys
 import array
 import re
