@@ -18,7 +18,8 @@ When Vad says that speech segment ended it should be called `stopListening(...)`
     '''
 
     #MODELDIR = "../models"
-    MODELDIR = "/home/as/src/speech/sphinx/lt-pocketsphinx-tutorial/impl/models"
+    #MODELDIR = "/home/as/src/speech/sphinx/lt-pocketsphinx-tutorial/impl/models"
+    MODELDIR = "../../lt-pocketsphinx-tutorial/impl/models"
 
     decoder = None
     config = None

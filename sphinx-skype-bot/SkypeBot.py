@@ -106,7 +106,7 @@ class SkypeBot:
 
         # terminate speech recording
         Call.OutputDevice(Skype4Py.callIoDeviceTypePort, None)
-        time.sleep(1)
+        time.sleep(3)
         Call.Finish()
 
 
@@ -121,6 +121,5 @@ class SkypeBot:
 if __name__ == "__main__":
     skypeBot = SkypeBot()
 
-
     while 1:
-        time.sleep(1)
+            time.sleep(1)
