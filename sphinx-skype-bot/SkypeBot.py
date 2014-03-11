@@ -99,7 +99,7 @@ class SkypeBot:
                 logging.info("Saying+++")
                 # pause thread execution while bot is speaking
                 while not Call.InputDevice(Skype4Py.callIoDeviceTypeFile) == None:
-                    time.sleep(.100)
+                    time.sleep(.010)
                 logging.info("Saying---")
                 #release lock
                 os.remove(self.lockFile);
