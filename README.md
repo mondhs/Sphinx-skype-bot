@@ -3,6 +3,7 @@ Sphinx-skype-bot
 
 Skype integration with robot Lithuanian language with sphinx and espeak.
 
+More info: [Speech Bot System](http://mondhs.github.io/en/2014/03/08/en-bot-dialog-system/)
 
 ### Instructions for Ubuntu 
 
